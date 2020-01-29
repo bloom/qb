@@ -1,0 +1,22 @@
+{
+  "name": "@bloom/qb",
+  "version": "1.0.0",
+  "description": "A no-sweat solution to deploying your app infrastructure with Ansible",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "ansible",
+    "wrapper",
+    "qb",
+    "field"
+  ],
+  "author": "Murphy Randle",
+  "license": "MIT",
+  "dependencies": {
+    "prompts": "^2.3.0",
+    "shelljs": "^0.8.3",
+    "yargs": "^15.1.0"
+  }
+}
