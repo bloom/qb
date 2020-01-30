@@ -221,7 +221,7 @@ if (argv._[0] == "run") {
   ensure_initted();
   let inventory = argv.playbook != "infra" ? `-i ${cfg.field}/inventory` : "";
   shell.exec(
-    `ANSIBLE_FORCE_COLOR=true ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook ${cfg.field}/${argv.playbook}.yml --vault-password-file ${secure.pass_getter} ${inventory} -vvvvv`
+    `ANSIBLE_FORCE_COLOR=true ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook ${cfg.field}/${argv.playbook}.yml --vault-password-file ${secure.pass_getter} ${inventory}`
   );
 }
 
