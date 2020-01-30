@@ -5,6 +5,7 @@ const prompts = require("prompts");
 const config = require("./config");
 const password = require("./password");
 const shell = require("shelljs");
+const fs = require("fs");
 const secure = require("./secure");
 
 const cfg = config.cfg;
@@ -70,16 +71,17 @@ async function create_field() {
   fs.writeFileSync(
     `${field}/app_env`,
     `# You'll want to copy this file to your servers and source it before running your apps.
-     # Fill it with environment variables like this:
-     # 
-     # export NODE_ENV=${field}
-     # 
-     # It's automatically encrypted when it's stored in your code, so you can put
-     # secrets in here.
-    `
+# Fill it with environment variables like this:
+# 
+# export NODE_ENV=${field}
+# 
+# It's automatically encrypted when it's stored in your code, so you can put
+# secrets in here.`
   );
 
   secure.protect(`${field}/app_env`);
+
+  fs.writeFileSync(`${field}/requirements.yml`, `# Add your requirements here`);
 }
 
 async function switch_field(field_name) {
@@ -139,12 +141,12 @@ function ensure_initted() {
   if (!cfg.app_name || !cfg.field) {
     console.log(`Yikes, looks like you don't have an app, or maybe an active field.
     Have you switched to an existing field or initted a new one yet?`);
-    sys.exit(-1);
+    process.exit(-1);
   }
   if (!password.get_from_config()) {
-    print(`Looks like you don't have a password stored in the vault yet for this
+    console.log(`Looks like you don't have a password stored in the vault yet for this
     app and field. Try switching to the same field or running "qb init"`);
-    sys.exit(-1);
+    process.exit(-1);
   }
 }
 
@@ -162,7 +164,7 @@ var argv = yargs
     yargs => {
       yargs
         .positional("operation", {
-          choices: ["show", "edit"]
+          choices: ["show", "edit", "set"]
         })
         .example(
           "$0 env show",
@@ -171,6 +173,10 @@ var argv = yargs
         .example(
           "$0 env edit",
           "Edit the app env, saving it in a safe, ecrypted form."
+        )
+        .example(
+          "$0 env set NODE_ENV production",
+          "Add or modify an environment variable in the encrypted app env."
         );
     }
   )
@@ -184,6 +190,10 @@ var argv = yargs
   .command("protect <file>", "Encrypt a file in-place")
   .command("protect_string <string>", "Encrypt a string and print the result")
   .command("expose <file>", "Decrypt a file in-place")
+  .command(
+    "install",
+    "Installs roles from Ansible Galaxy listed in the field's requirements.yml file"
+  )
   .demandCommand(1)
   .help("h")
   .alias("h", "help").argv;
@@ -209,8 +219,9 @@ if (argv._[0] == "field" && argv.operation == "switch") {
 
 if (argv._[0] == "run") {
   ensure_initted();
+  let inventory = argv.playbook != "infra" ? `-i ${cfg.field}/inventory` : "";
   shell.exec(
-    `ANSIBLE_FORCE_COLOR=true ansible-playbook ${cfg.field}/${argv.playbook}.yml --vault-password-file ${secure.pass_getter}`
+    `ANSIBLE_FORCE_COLOR=true ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook ${cfg.field}/${argv.playbook}.yml --vault-password-file ${secure.pass_getter} ${inventory} -vvvvv`
   );
 }
 
@@ -222,6 +233,19 @@ if (argv._[0] == "env" && argv.operation == "show") {
 if (argv._[0] == "env" && argv.operation == "edit") {
   ensure_initted();
   env.edit();
+}
+
+if (argv._[0] == "env" && argv.operation == "set") {
+  ensure_initted();
+  let varName = argv._[1];
+  let varVal = argv._[2];
+  if (!varName || !varVal) {
+    console.log(
+      "You tried to set an env var without passing in the name or value of it! See qb env -h for an example."
+    );
+    process.exit(-1);
+  }
+  env.set(varName, varVal);
 }
 
 if (argv._[0] == "edit") {
@@ -247,4 +271,9 @@ if (argv._[0] == "protect_string") {
 if (argv._[0] == "expose") {
   ensure_initted();
   secure.expose(argv.string);
+}
+
+if (argv._[0] == "install") {
+  ensure_initted();
+  shell.exec(`cd ${cfg.field} && ansible-galaxy install -r requirements.yml`);
 }
