@@ -13,7 +13,7 @@ module.exports.edit = () => {
 
 module.exports.set = (varName, varVal) => {
   let path = `${cfg.field}/app_env`;
-  let newLine = `export ${varName}=${varVal}`;
+  let newLine = `export ${varName}="${varVal}"`;
 
   secure.expose(path);
   let lines = fs.readFileSync(path, { encoding: "utf-8" }).split("\n");
