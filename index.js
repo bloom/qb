@@ -270,7 +270,7 @@ if (argv._[0] == "protect_string") {
 
 if (argv._[0] == "expose") {
   ensure_initted();
-  secure.expose(argv.string);
+  secure.expose(argv.file);
 }
 
 if (argv._[0] == "install") {

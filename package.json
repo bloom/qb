@@ -1,5 +1,5 @@
 {
-  "name": "@bloom/qb",
+  "name": "@dayone/qb",
   "version": "1.0.0",
   "description": "A no-sweat solution to deploying your app infrastructure with Ansible",
   "main": "index.js",
