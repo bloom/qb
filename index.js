@@ -8,7 +8,6 @@ const shell = require("shelljs");
 const fs = require("fs");
 const secure = require("./secure");
 
-shell.config.silent = true;
 const cfg = config.cfg;
 
 async function create_field() {
@@ -223,7 +222,9 @@ if (argv._[0] == "run") {
   let inventory = argv.playbook != "infra" ? `-i ${cfg.field}/inventory` : "";
 
   if (argv.playbook == "deploy") {
-    let isGitClean = shell.exec("git status --porcelain").stdout.trim() == "";
+    let isGitClean =
+      shell.exec("git status --porcelain", { silent: true }).stdout.trim() ==
+      "";
     if (!isGitClean) {
       console.log(
         "Looks like you have uncommited changes in your git repository. Please commit or stash all changes and run again."
@@ -231,10 +232,22 @@ if (argv._[0] == "run") {
       process.exit(1);
     }
 
-    let gitBranch = shell.exec("git rev-parse --abbrev-ref HEAD").stdout.trim();
+    let gitBranch = shell
+      .exec("git rev-parse --abbrev-ref HEAD", { silent: true })
+      .stdout.trim();
     if (gitBranch != cfg.field) {
       console.log(
         `It looks like you're on a branch (${gitBranch}) right now that doesn't match the name of the field you have active (${cfg.field}). For safety's sake, create a branch with the same name as your field and deploy from there.`
+      );
+      process.exit(1);
+    }
+
+    let unpushedCommits = shell
+      .exec("git cherry -v", { silent: true })
+      .stdout.trim();
+    if (unpushedCommits != "") {
+      console.log(
+        `It looks like you have local commits that you haven't yet pushed to the remote branch. Please do so before deploying.`
       );
       process.exit(1);
     }
