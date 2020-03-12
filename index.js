@@ -8,6 +8,7 @@ const shell = require("shelljs");
 const fs = require("fs");
 const secure = require("./secure");
 
+shell.config.silent = true;
 const cfg = config.cfg;
 
 async function create_field() {
@@ -220,6 +221,25 @@ if (argv._[0] == "field" && argv.operation == "switch") {
 if (argv._[0] == "run") {
   ensure_initted();
   let inventory = argv.playbook != "infra" ? `-i ${cfg.field}/inventory` : "";
+
+  if (argv.playbook == "deploy") {
+    let isGitClean = shell.exec("git status --porcelain").stdout.trim() == "";
+    if (!isGitClean) {
+      console.log(
+        "Looks like you have uncommited changes in your git repository. Please commit or stash all changes and run again."
+      );
+      process.exit(1);
+    }
+
+    let gitBranch = shell.exec("git rev-parse --abbrev-ref HEAD").stdout.trim();
+    if (gitBranch != cfg.field) {
+      console.log(
+        `It looks like you're on a branch (${gitBranch}) right now that doesn't match the name of the field you have active (${cfg.field}). For safety's sake, create a branch with the same name as your field and deploy from there.`
+      );
+      process.exit(1);
+    }
+  }
+
   shell.exec(
     `ANSIBLE_FORCE_COLOR=true ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook ${cfg.field}/${argv.playbook}.yml --vault-password-file ${secure.pass_getter} ${inventory}`
   );
