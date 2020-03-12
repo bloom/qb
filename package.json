@@ -1,6 +1,6 @@
 {
   "name": "@dayone/qb",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A no-sweat solution to deploying your app infrastructure with Ansible",
   "main": "index.js",
   "bin": {
