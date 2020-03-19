@@ -2,13 +2,12 @@
 const yargs = require("yargs");
 const env = require("./env");
 const prompts = require("prompts");
-const config = require("./config");
 const password = require("./password");
 const shell = require("shelljs");
 const fs = require("fs");
 const secure = require("./secure");
-
-const cfg = config.cfg;
+const git = require("./git");
+const cfg = require("./config");
 
 async function create_field() {
   console.log(
@@ -32,8 +31,7 @@ async function create_field() {
         "What password should we use for encrypting files? (Keep this in a password manager for later!)"
     }
   ]);
-  config.save(response.app_name, response.field);
-  password.store(response.field, response.app_name, response.password);
+  password.store(response.field, cfg.workDir, response.password);
 
   const field = response.field;
   const app_name = response.app_name;
@@ -84,36 +82,6 @@ async function create_field() {
   fs.writeFileSync(`${field}/requirements.yml`, `# Add your requirements here`);
 }
 
-async function switch_field(field_name) {
-  if (!shell.test("-d", field_name)) {
-    console.log(
-      `Whoa, partner. I can't activate the field ${field_name} because that folder doesn't exist. Have you init'd it?`
-    );
-    process.exit(-1);
-  }
-  var app_name = cfg.app_name;
-  if (app_name == null) {
-    var response = await prompts({
-      type: "text",
-      name: "app_name",
-      message:
-        "Looks like we don't have an app set up for you yet. Please enter your app name!"
-    });
-    app_name = response.app_name;
-  }
-  if (password.get(app_name, field_name) == null) {
-    var response = await prompts({
-      type: "password",
-      name: "password",
-      message:
-        "There isn't a password saved for this field yet. Please drop that thing here."
-    });
-    password.store(field_name, app_name, response.password);
-  }
-  console.log("Activating the field OOH YEAHH!");
-  config.save(app_name, field_name);
-}
-
 async function init() {
   var response = await prompts({
     type: "select",
@@ -137,16 +105,25 @@ async function init() {
   }
 }
 
-function ensure_initted() {
-  if (!cfg.app_name || !cfg.field) {
-    console.log(`Yikes, looks like you don't have an app, or maybe an active field.
-    Have you switched to an existing field or initted a new one yet?`);
-    process.exit(-1);
-  }
-  if (!password.get_from_config()) {
-    console.log(`Looks like you don't have a password stored in the vault yet for this
-    app and field. Try switching to the same field or running "qb init"`);
-    process.exit(-1);
+async function ensure_initted() {
+  // Try to get the password.
+  // If it's not there, ask for it.
+  let pw = password.get(cfg.workDir, cfg.field);
+  if (!pw) {
+    console.log(
+      `Looks like you don't have a password stored in the vault yet for this app and field.`
+    );
+
+    const response = await prompts([
+      {
+        type: "password",
+        name: "password",
+        message:
+          "What password should we use for encrypting files? (Keep this in a password manager for later!)"
+      }
+    ]);
+
+    password.store(cfg.field, cfg.workDir, response.password);
   }
 }
 
@@ -155,7 +132,7 @@ var argv = yargs
   .command("init", "Give QB the context it needs to get running")
   .command("field <operation>", "Create or switch active fields 🙌", yargs => {
     yargs.positional("operation", {
-      choices: ["new", "switch"]
+      choices: ["new"]
     });
   })
   .command(
@@ -198,115 +175,98 @@ var argv = yargs
   .help("h")
   .alias("h", "help").argv;
 
-if (argv._[0] == "init") {
-  init();
-}
+async function main() {
+  if (argv._[0] == "init") {
+    init();
+  }
 
-if (argv._[0] == "field" && argv.operation == "new") {
-  create_field().catch(console.error.bind(this));
-}
+  if (argv._[0] == "field" && argv.operation == "new") {
+    create_field().catch(console.error.bind(this));
+  }
 
-if (argv._[0] == "field" && argv.operation == "switch") {
-  (async function() {
-    var response = await prompts({
-      type: "text",
-      name: "name",
-      message: "What's the name of the field you want to activate?"
-    });
-    switch_field(response.name).catch(console.error.bind(this));
-  })().catch(console.error.bind(this));
-}
+  if (argv._[0] == "run") {
+    await ensure_initted();
+    let inventory = argv.playbook != "infra" ? `-i ${cfg.field}/inventory` : "";
 
-if (argv._[0] == "run") {
-  ensure_initted();
-  let inventory = argv.playbook != "infra" ? `-i ${cfg.field}/inventory` : "";
-
-  if (argv.playbook == "deploy") {
-    let isGitClean =
+    if (argv.playbook == "deploy") {
+      let isGitClean = git.isClean();
       shell.exec("git status --porcelain", { silent: true }).stdout.trim() ==
-      "";
-    if (!isGitClean) {
-      console.log(
-        "Looks like you have uncommited changes in your git repository. Please commit or stash all changes and run again."
-      );
-      process.exit(1);
+        "";
+      if (!isGitClean) {
+        console.log(
+          "Looks like you have uncommited changes in your git repository. Please commit or stash all changes and run again."
+        );
+        process.exit(1);
+      }
+
+      let unpushedCommits = git.unpushed();
+      if (unpushedCommits != "") {
+        console.log(
+          `It looks like you have local commits that you haven't yet pushed to the remote branch. Please do so before deploying.`
+        );
+        process.exit(1);
+      }
     }
 
-    let gitBranch = shell
-      .exec("git rev-parse --abbrev-ref HEAD", { silent: true })
-      .stdout.trim();
-    if (gitBranch != cfg.field) {
-      console.log(
-        `It looks like you're on a branch (${gitBranch}) right now that doesn't match the name of the field you have active (${cfg.field}). For safety's sake, create a branch with the same name as your field and deploy from there.`
-      );
-      process.exit(1);
-    }
-
-    let unpushedCommits = shell
-      .exec("git cherry -v", { silent: true })
-      .stdout.trim();
-    if (unpushedCommits != "") {
-      console.log(
-        `It looks like you have local commits that you haven't yet pushed to the remote branch. Please do so before deploying.`
-      );
-      process.exit(1);
-    }
-  }
-
-  shell.exec(
-    `ANSIBLE_FORCE_COLOR=true ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook ${cfg.field}/${argv.playbook}.yml --vault-password-file ${secure.pass_getter} ${inventory}`
-  );
-}
-
-if (argv._[0] == "env" && argv.operation == "show") {
-  ensure_initted();
-  env.show();
-}
-
-if (argv._[0] == "env" && argv.operation == "edit") {
-  ensure_initted();
-  env.edit();
-}
-
-if (argv._[0] == "env" && argv.operation == "set") {
-  ensure_initted();
-  let varName = argv._[1];
-  let varVal = argv._[2];
-  if (!varName || !varVal) {
-    console.log(
-      "You tried to set an env var without passing in the name or value of it! See qb env -h for an example."
+    shell.exec(
+      `ANSIBLE_FORCE_COLOR=true ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook ${cfg.field}/${argv.playbook}.yml --vault-password-file ${secure.pass_getter} ${inventory}`
     );
-    process.exit(-1);
   }
-  env.set(varName, varVal);
+
+  if (argv._[0] == "env" && argv.operation == "show") {
+    await ensure_initted();
+    env.show();
+  }
+
+  if (argv._[0] == "env" && argv.operation == "edit") {
+    await ensure_initted();
+    env.edit();
+  }
+
+  if (argv._[0] == "env" && argv.operation == "set") {
+    await ensure_initted();
+    let varName = argv._[1];
+    let varVal = argv._[2];
+    if (!varName || !varVal) {
+      console.log(
+        "You tried to set an env var without passing in the name or value of it! See qb env -h for an example."
+      );
+      process.exit(-1);
+    }
+    env.set(varName, varVal);
+  }
+
+  if (argv._[0] == "edit") {
+    await ensure_initted();
+    secure.edit(argv.file);
+  }
+
+  if (argv._[0] == "show") {
+    await ensure_initted();
+    secure.show(argv.file);
+  }
+
+  if (argv._[0] == "protect") {
+    await ensure_initted();
+    secure.protect(argv.file);
+  }
+
+  if (argv._[0] == "protect_string") {
+    await ensure_initted();
+    secure.protect_string(argv.string);
+  }
+
+  if (argv._[0] == "expose") {
+    await ensure_initted();
+    secure.expose(argv.file);
+  }
+
+  if (argv._[0] == "install") {
+    await ensure_initted();
+    shell.exec(`cd ${cfg.field} && ansible-galaxy install -r requirements.yml`);
+  }
 }
 
-if (argv._[0] == "edit") {
-  ensure_initted();
-  secure.edit(argv.file);
-}
-
-if (argv._[0] == "show") {
-  ensure_initted();
-  secure.show(argv.file);
-}
-
-if (argv._[0] == "protect") {
-  ensure_initted();
-  secure.protect(argv.file);
-}
-
-if (argv._[0] == "protect_string") {
-  ensure_initted();
-  secure.protect_string(argv.string);
-}
-
-if (argv._[0] == "expose") {
-  ensure_initted();
-  secure.expose(argv.file);
-}
-
-if (argv._[0] == "install") {
-  ensure_initted();
-  shell.exec(`cd ${cfg.field} && ansible-galaxy install -r requirements.yml`);
-}
+main().catch(err => {
+  throw err;
+});

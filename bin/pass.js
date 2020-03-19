@@ -4,10 +4,10 @@ const process = require("process");
 try {
   const { exec } = require("shelljs");
   const fs = require("fs");
-  const { cfg } = require("../config");
   const password = require("../password");
+  const cfg = require("../config");
 
-  let p = password.get_from_config();
+  let p = password.get(cfg.workDir, cfg.field);
   if (p == null) {
     console.error("No password found");
     process.exit(-1);

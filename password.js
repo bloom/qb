@@ -8,16 +8,6 @@ module.exports.store = (field_name, app_name, vault_pass) => {
   );
 };
 
-module.exports.get_from_config = () => {
-  if (!cfg.app_name || !cfg.field) {
-    console.error(
-      "Tried to load password from keychain, but no config was found."
-    );
-    process.exit(-1);
-  }
-  return module.exports.get(cfg.app_name, cfg.field);
-};
-
 module.exports.get = (app_name, field) => {
   const pw = exec(
     `security find-generic-password -w -a ${app_name}.${field} -s com.bloombuilt.qb`,

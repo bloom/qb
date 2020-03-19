@@ -1,4 +1,4 @@
-const { cfg } = require("./config");
+const cfg = require("./config");
 const secure = require("./secure");
 const { exec } = require("shelljs");
 const fs = require("fs");
