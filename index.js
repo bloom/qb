@@ -17,19 +17,19 @@ async function create_field() {
     {
       type: "text",
       name: "field",
-      message: "What's the name of the field? (e.g. staging)"
+      message: "What's the name of the field? (e.g. staging)",
     },
     {
       type: "text",
       name: "app_name",
-      message: "What's the name of this app?"
+      message: "What's the name of this app?",
     },
     {
       type: "password",
       name: "password",
       message:
-        "What password should we use for encrypting files? (Keep this in a password manager for later!)"
-    }
+        "What password should we use for encrypting files? (Keep this in a password manager for later!)",
+    },
   ]);
   password.store(response.field, cfg.workDir, response.password);
 
@@ -89,8 +89,8 @@ async function init() {
     message: "Hi! Want to create a new field? or activate an existing one? 🏈",
     choices: [
       { title: "create", value: "create" },
-      { title: "activate", value: "activate" }
-    ]
+      { title: "activate", value: "activate" },
+    ],
   });
 
   if (response.intent == "create") {
@@ -99,7 +99,7 @@ async function init() {
     var response = await prompts({
       type: "text",
       name: "name",
-      message: "What's the name of the field you want to activate?"
+      message: "What's the name of the field you want to activate?",
     });
     await switch_field(response.name);
   }
@@ -119,8 +119,8 @@ async function ensure_initted() {
         type: "password",
         name: "password",
         message:
-          "What password should we use for encrypting files? (Keep this in a password manager for later!)"
-      }
+          "What password should we use for encrypting files? (Keep this in a password manager for later!)",
+      },
     ]);
 
     password.store(cfg.field, cfg.workDir, response.password);
@@ -130,18 +130,22 @@ async function ensure_initted() {
 var argv = yargs
   .usage("Usage: $0 <command> [options]")
   .command("init", "Give QB the context it needs to get running")
-  .command("field <operation>", "Create or switch active fields 🙌", yargs => {
-    yargs.positional("operation", {
-      choices: ["new"]
-    });
-  })
+  .command(
+    "field <operation>",
+    "Create or switch active fields 🙌",
+    (yargs) => {
+      yargs.positional("operation", {
+        choices: ["new"],
+      });
+    }
+  )
   .command(
     "env <operation>",
     "Easily work with the app environment for the active field.",
-    yargs => {
+    (yargs) => {
       yargs
         .positional("operation", {
-          choices: ["show", "edit", "set"]
+          choices: ["show", "edit", "set"],
         })
         .example(
           "$0 env show",
@@ -157,9 +161,9 @@ var argv = yargs
         );
     }
   )
-  .command("run <playbook>", "Run a playbook!", yargs => {
+  .command("run <playbook>", "Run a playbook!", (yargs) => {
     yargs.positional("playbook", {
-      choices: ["infra", "provision", "deploy"]
+      choices: ["infra", "provision", "deploy"],
     });
   })
   .command("edit <file>", "Edit an encrypted file.")
@@ -188,23 +192,25 @@ async function main() {
     await ensure_initted();
     let inventory = argv.playbook != "infra" ? `-i ${cfg.field}/inventory` : "";
 
-    if (argv.playbook == "deploy") {
-      let isGitClean = git.isClean();
-      shell.exec("git status --porcelain", { silent: true }).stdout.trim() ==
-        "";
-      if (!isGitClean) {
-        console.log(
-          "Looks like you have uncommited changes in your git repository. Please commit or stash all changes and run again."
-        );
-        process.exit(1);
-      }
+    if (!argv.force) {
+      if (argv.playbook == "deploy") {
+        let isGitClean = git.isClean();
+        shell.exec("git status --porcelain", { silent: true }).stdout.trim() ==
+          "";
+        if (!isGitClean) {
+          console.log(
+            "Looks like you have uncommited changes in your git repository. Please commit or stash all changes and run again."
+          );
+          process.exit(1);
+        }
 
-      let unpushedCommits = git.unpushed();
-      if (unpushedCommits != "") {
-        console.log(
-          `It looks like you have local commits that you haven't yet pushed to the remote branch. Please do so before deploying.`
-        );
-        process.exit(1);
+        let unpushedCommits = git.unpushed();
+        if (unpushedCommits != "") {
+          console.log(
+            `It looks like you have local commits that you haven't yet pushed to the remote branch. Please do so before deploying.`
+          );
+          process.exit(1);
+        }
       }
     }
 
@@ -267,6 +273,6 @@ async function main() {
   }
 }
 
-main().catch(err => {
+main().catch((err) => {
   throw err;
 });
