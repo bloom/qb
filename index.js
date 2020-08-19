@@ -232,9 +232,9 @@ async function main() {
       { fatal: true }
     );
 
-    if (r.status) {
-      process.exit(1);
-    }
+    if (r.status != 0) {
+      process.exit(-1);
+    }}
   }
 
   if (argv._[0] == "env" && argv.operation == "show") {
