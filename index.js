@@ -219,7 +219,8 @@ async function main() {
     }
 
     shell.exec(
-      `ANSIBLE_FORCE_COLOR=true ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook ${cfg.field}/${argv.playbook}.yml --vault-password-file ${secure.pass_getter} ${inventory}`
+      `ANSIBLE_FORCE_COLOR=true ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook ${cfg.field}/${argv.playbook}.yml --vault-password-file ${secure.pass_getter} ${inventory}`,
+      { fatal: true }
     );
   }
 
@@ -227,7 +228,8 @@ async function main() {
     await ensure_initted();
     let inventory = `-i ${cfg.field}/inventory`;
     shell.exec(
-      `ANSIBLE_FORCE_COLOR=true ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook ${cfg.field}/deploy.yml --vault-password-file ${secure.pass_getter} ${inventory}`
+      `ANSIBLE_FORCE_COLOR=true ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook ${cfg.field}/deploy.yml --vault-password-file ${secure.pass_getter} ${inventory}`,
+      { fatal: true }
     );
   }
 
