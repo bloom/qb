@@ -232,7 +232,7 @@ async function main() {
       { fatal: true }
     );
 
-    if (r.status != 0) {
+    if (r.code != 0) {
       process.exit(-1);
     }
   }
