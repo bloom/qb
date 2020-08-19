@@ -227,10 +227,14 @@ async function main() {
   if (argv._[0] == "ci") {
     await ensure_initted();
     let inventory = `-i ${cfg.field}/inventory`;
-    shell.exec(
+    let r = shell.exec(
       `ANSIBLE_FORCE_COLOR=true ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook ${cfg.field}/deploy.yml --vault-password-file ${secure.pass_getter} ${inventory}`,
       { fatal: true }
     );
+
+    if (r.status) {
+      process.exit(1);
+    }
   }
 
   if (argv._[0] == "env" && argv.operation == "show") {
