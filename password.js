@@ -9,10 +9,12 @@ module.exports.store = (field_name, app_name, vault_pass) => {
 };
 
 module.exports.get = (app_name, field) => {
-  const pw = exec(
-    `security find-generic-password -w -a ${app_name}.${field} -s com.bloombuilt.qb`,
-    { silent: true }
-  ).stdout;
+  const pw =
+    process.env.QB_PASS ||
+    exec(
+      `security find-generic-password -w -a ${app_name}.${field} -s com.bloombuilt.qb`,
+      { silent: true }
+    ).stdout;
   if (pw.trim() == "") {
     return null;
   } else {
