@@ -166,6 +166,10 @@ var argv = yargs
       choices: ["infra", "provision", "deploy"],
     });
   })
+  .command(
+    "ci",
+    "Deploys to a field without any safety checks. Set your ENVs correctly!"
+  )
   .command("edit <file>", "Edit an encrypted file.")
   .command("show <file>", "Print the contents of an encrypted file to stdout")
   .command("protect <file>", "Encrypt a file in-place")
@@ -216,6 +220,14 @@ async function main() {
 
     shell.exec(
       `ANSIBLE_FORCE_COLOR=true ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook ${cfg.field}/${argv.playbook}.yml --vault-password-file ${secure.pass_getter} ${inventory}`
+    );
+  }
+
+  if (argv._[0] == "ci") {
+    await ensure_initted();
+    let inventory = `-i ${cfg.field}/inventory`;
+    shell.exec(
+      `ANSIBLE_FORCE_COLOR=true ANSIBLE_HOST_KEY_CHECKING=false ansible-playbook ${cfg.field}/deploy.yml --vault-password-file ${secure.pass_getter} ${inventory}`
     );
   }
 

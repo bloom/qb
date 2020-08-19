@@ -7,7 +7,7 @@ try {
   const password = require("../password");
   const cfg = require("../config");
 
-  let p = password.get(cfg.workDir, cfg.field);
+  let p = process.env.QB_PASS || password.get(cfg.workDir, cfg.field);
   if (p == null) {
     console.error("No password found");
     process.exit(-1);
